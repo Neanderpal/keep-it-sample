@@ -210,7 +210,7 @@
 <header>
   <div class="title">
     <h1>Keep it Sample</h1>
-    <p>Catalogo personale di campioni musicali: incolli un link YouTube, indichi da che secondo a che secondo, e lo riascolti quando vuoi.</p>
+    <p>Your personal Sample Library: keep track of every sample you'd like to use in your projects, get the YouTube link, mark the section, detect the BPM and Key and play it whenever you want.Sample it from your phone via USB-c into your Sampler or directly into your DAW and forget SD cards.</p>
   </div>
   <div id="auth-bar">Caricamento...</div>
 </header>
@@ -222,7 +222,7 @@
     <div id="player-wrap">
       <div id="yt-player"></div>
       <div id="now-playing">
-        Nessun campione in riproduzione.
+        No Sample Playing.
         <div>
           <button id="stop-btn" class="ghost small" type="button">Stop</button>
         </div>
@@ -231,20 +231,20 @@
   </section>
 
   <section class="card" id="form-card" hidden>
-    <h2>Aggiungi un campione</h2>
+    <h2>Add a Sample</h2>
     <form id="sample-form">
       <div class="field wide">
         <label for="f-url">Link YouTube (o ID video)</label>
         <input id="f-url" type="text" placeholder="https://www.youtube.com/watch?v=..." required>
       </div>
       <div class="field">
-        <label for="f-name">Nome del campione</label>
-        <input id="f-name" type="text" placeholder="es. Basso pompato" required>
+        <label for="f-name">Sample Name</label>
+        <input id="f-name" type="text" placeholder="es. Song,Artist" required>
       </div>
       <div class="field">
-        <label for="f-category">Categoria</label>
+        <label for="f-category">Type</label>
         <select id="f-category" required>
-          <option value="" disabled selected>Scegli...</option>
+          <option value="" disabled selected>Choose...</option>
           <option>Bass</option>
           <option>Melodic</option>
           <option>Guitar</option>
@@ -256,32 +256,31 @@
         </select>
       </div>
       <div class="field">
-        <label for="f-start">Inizio (mm:ss o secondi)</label>
+        <label for="f-start">Start (mm:ss or seconds)</label>
         <input id="f-start" type="text" placeholder="es. 1:23" required>
       </div>
       <div class="field">
-        <label for="f-end">Fine (mm:ss o secondi)</label>
+        <label for="f-end">End (mm:ss o seconds)</label>
         <input id="f-end" type="text" placeholder="es. 1:31" required>
       </div>
       <div class="field">
-        <label for="f-bpm">BPM (opzionale)</label>
+        <label for="f-bpm">BPM (optional)</label>
         <input id="f-bpm" type="number" min="1" step="1" placeholder="es. 128">
       </div>
       <div class="field">
-        <label for="f-key">Tonalità (opzionale)</label>
+        <label for="f-key">Key (optional)</label>
         <input id="f-key" type="text" placeholder="es. A minor">
       </div>
       <div class="field">
-        <button id="detect-btn" class="ghost" type="button" disabled>Rileva BPM/Tonalità</button>
+        <button id="detect-btn" class="ghost" type="button" disabled>Detect BPM/Key</button>
       </div>
       <div class="field wide">
         <div id="detect-status" class="hint">
-          Il rilevamento analizza l'audio reale del frammento mentre suona: funziona solo su Chrome/Edge desktop e
-          chiede una volta di condividere l'audio di questa scheda. È una stima automatica, sempre modificabile prima di salvare.
+          This function analyzes the actual audio of the segment as it plays: it only works on Chrome/Edge desktop and will ask once to share this tab's audio. It's an automatic estimate, always editable before saving.
         </div>
       </div>
       <div class="field">
-        <button type="submit" class="primary">Salva campione</button>
+        <button type="submit" class="primary">Save</button>
       </div>
       <div class="field wide">
         <div id="form-status" class="status-msg"></div>
@@ -294,7 +293,7 @@
     <div id="filters"></div>
     <br>
     <div id="grid"></div>
-    <div id="empty-msg" class="empty-msg" hidden>Nessun campione salvato ancora in questa categoria.</div>
+    <div id="empty-msg" class="empty-msg" hidden>No sample in this category.</div>
   </section>
 
 </main>
