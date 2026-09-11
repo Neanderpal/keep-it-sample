@@ -71,8 +71,15 @@
     gap: 16px;
     align-items: flex-start;
   }
-  #yt-player {
-    flex: 0 0 auto;
+    #yt-player {
+    flex: 1 1 320px;
+    max-width: 360px;
+  }
+  #yt-player iframe {
+    width: 100%;
+    height: auto;
+    aspect-ratio: 360 / 220;
+    display: block;
   }
   #now-playing {
     flex: 1 1 200px;
