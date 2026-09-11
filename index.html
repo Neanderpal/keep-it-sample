@@ -756,7 +756,7 @@
     const emptyMsg = document.getElementById("empty-msg");
     grid.innerHTML = "";
 
-    const list = allSamples.filter(s => currentFilter === "Tutte" || s.category === currentFilter);
+    const list = allSamples.filter(s => currentFilter === "All" || s.category === currentFilter);
     emptyMsg.hidden = list.length > 0;
 
     list.forEach(s => {
@@ -771,8 +771,8 @@
         <div class="name">${escapeHtml(s.name)}</div>
         <div class="time-range">${formatTime(s.start)} - ${formatTime(s.end)}${metaLine}</div>
         <div class="card-actions">
-          <button class="primary small" data-action="play" data-id="${s.id}">Riproduci</button>
-          ${signedIn ? `<button class="danger small" data-action="delete" data-id="${s.id}">Elimina</button>` : ""}
+          <button class="primary small" data-action="play" data-id="${s.id}">Play</button>
+          ${signedIn ? `<button class="danger small" data-action="delete" data-id="${s.id}">Delete</button>` : ""}
         </div>
       `;
       grid.appendChild(card);
