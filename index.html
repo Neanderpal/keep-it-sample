@@ -461,6 +461,36 @@
     });
   }
 
+  // Alcuni video hanno una pubblicità pre-roll: l'API di YouTube non
+  // permette di saltarla, ma possiamo evitare di iniziare a contare i
+  // secondi (o a registrare l'audio per il rilevamento BPM) finché lo
+  // spot sta ancora suonando. Durante la pubblicità getVideoData().video_id
+  // riporta l'ID dello spot, non quello richiesto: aspettiamo che torni a
+  // coincidere con il nostro video e che il player sia effettivamente in
+  // riproduzione prima di considerare "partito" il contenuto reale.
+  function waitForRealContent(videoId, timeoutMs = 20000) {
+    return new Promise((resolve, reject) => {
+      const startTime = Date.now();
+      const iv = setInterval(() => {
+        let matches = false;
+        try {
+          const data = player.getVideoData ? player.getVideoData() : null;
+          const state = player.getPlayerState ? player.getPlayerState() : null;
+          matches = !!data && data.video_id === videoId && state === 1; // 1 = YT.PlayerState.PLAYING
+        } catch (e) {
+          matches = false;
+        }
+        if (matches) {
+          clearInterval(iv);
+          resolve();
+        } else if (Date.now() - startTime > timeoutMs) {
+          clearInterval(iv);
+          reject(new Error("timeout"));
+        }
+      }, 200);
+    });
+  }
+
   async function playSegment(videoId, start, end, name) {
     try {
       await waitForPlayer();
@@ -472,8 +502,23 @@
       return;
     }
     clearInterval(stopTimer);
+    document.getElementById("now-playing").innerHTML =
+      `Caricamento: <strong>${escapeHtml(name)}</strong>... (se il video ha una pubblicità iniziale, attendi che finisca)`;
     player.loadVideoById({ videoId, startSeconds: start });
     player.playVideo();
+
+    try {
+      await waitForRealContent(videoId);
+      // Dopo un'eventuale pubblicità il video potrebbe essere ripartito
+      // dall'inizio invece che dal secondo richiesto: ci assicuriamo di
+      // essere davvero al punto giusto prima di far scattare il timer.
+      player.seekTo(start, true);
+      player.playVideo();
+    } catch {
+      // Non siamo riusciti a confermare l'inizio del contenuto reale entro
+      // il timeout: proseguiamo comunque, meglio tentare che restare bloccati.
+    }
+
     document.getElementById("now-playing").innerHTML =
       `In riproduzione: <strong>${escapeHtml(name)}</strong> (${formatTime(start)} - ${formatTime(end)})
        <div><button id="stop-btn" class="ghost small" type="button">Stop</button></div>`;
@@ -556,6 +601,18 @@
 
     player.loadVideoById({ videoId, startSeconds: start });
     player.playVideo();
+
+    // Aspettiamo che il contenuto reale sia partito (non la pubblicità)
+    // prima di iniziare a registrare, così l'audio catturato è quello del
+    // brano e non quello di uno spot pre-roll.
+    try {
+      await waitForRealContent(videoId);
+      player.seekTo(start, true);
+      player.playVideo();
+    } catch {
+      // procediamo comunque: meglio un'analisi imperfetta che nessuna
+    }
+
     recorder.start();
 
     await new Promise((r) => setTimeout(r, (duration + 1.5) * 1000));
@@ -608,7 +665,7 @@
 
     const btn = document.getElementById("detect-btn");
     btn.disabled = true;
-    setDetectStatus("Condividi l'audio di questa scheda quando richiesto, poi attendi la riproduzione del frammento...");
+    setDetectStatus("Condividi l'audio di questa scheda quando richiesto, poi attendi la riproduzione del frammento (se il video ha una pubblicità iniziale, l'app aspetta che finisca prima di registrare)...");
     try {
       const result = await detectBpmAndKey(videoId, start, end);
       document.getElementById("f-bpm").value = result.bpm;
