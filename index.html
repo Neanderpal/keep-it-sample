@@ -265,7 +265,7 @@
         <input id="f-key" type="text" placeholder="es. A minor">
       </div>
       <div class="field">
-        <button id="detect-btn" class="ghost" type="button">Rileva BPM/Tonalità</button>
+        <button id="detect-btn" class="ghost" type="button" disabled>Rileva BPM/Tonalità</button>
       </div>
       <div class="field wide">
         <div id="detect-status" class="hint">
@@ -293,6 +293,20 @@
 </main>
 
 <!-- YouTube IFrame API -->
+<script>
+  // Aggancio robusto: l'API di YouTube può richiamare questa funzione prima
+  // che lo script principale (più sotto, di tipo module) abbia finito di
+  // caricarsi. Qui memorizziamo solo un flag + una callback, così l'ordine
+  // di esecuzione non causa una corsa che lascerebbe il player mai creato.
+  window.__ytApiReady = false;
+  window.__onYtReadyCallback = null;
+  window.onYouTubeIframeAPIReady = function () {
+    window.__ytApiReady = true;
+    if (typeof window.__onYtReadyCallback === "function") {
+      window.__onYtReadyCallback();
+    }
+  };
+</script>
 <script src="https://www.youtube.com/iframe_api"></script>
 
 <script type="module">
@@ -306,10 +320,9 @@
   } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 
   // ---------------------------------------------------------------
-  // 1) CONFIGURAZIONE FIREBASE — sostituisci con i valori del tuo
-  //    progetto (Console Firebase > Impostazioni progetto > App web).
+  // 1) CONFIGURAZIONE FIREBASE (progetto "keep-it-sample")
   // ---------------------------------------------------------------
-const firebaseConfig = {
+  const firebaseConfig = {
     apiKey: "AIzaSyDqrWn9yL_gq8eHW3OjK4csCC_wWEEDcUY",
     authDomain: "keep-it-sample.firebaseapp.com",
     projectId: "keep-it-sample",
@@ -408,21 +421,54 @@ const firebaseConfig = {
   let playerReady = false;
   let stopTimer = null;
 
-  window.onYouTubeIframeAPIReady = function () {
+  function createPlayer() {
     player = new YT.Player("yt-player", {
       height: "220",
       width: "360",
       videoId: "",
       playerVars: { rel: 0 },
       events: {
-        onReady: () => { playerReady = true; }
+        onReady: () => {
+          playerReady = true;
+          const btn = document.getElementById("detect-btn");
+          if (btn) btn.disabled = false;
+        }
       }
     });
-  };
+  }
 
-  function playSegment(videoId, start, end, name) {
-    if (!playerReady) {
-      alert("Il player si sta ancora caricando, riprova tra un secondo.");
+  // L'API di YouTube potrebbe essere già pronta (o diventarlo poco dopo):
+  // copriamo entrambi i casi invece di affidarci solo a un singolo evento.
+  if (window.__ytApiReady) {
+    createPlayer();
+  } else {
+    window.__onYtReadyCallback = createPlayer;
+  }
+
+  function waitForPlayer(timeoutMs = 6000) {
+    return new Promise((resolve, reject) => {
+      if (playerReady) return resolve();
+      const startTime = Date.now();
+      const iv = setInterval(() => {
+        if (playerReady) {
+          clearInterval(iv);
+          resolve();
+        } else if (Date.now() - startTime > timeoutMs) {
+          clearInterval(iv);
+          reject(new Error("timeout"));
+        }
+      }, 200);
+    });
+  }
+
+  async function playSegment(videoId, start, end, name) {
+    try {
+      await waitForPlayer();
+    } catch {
+      alert(
+        "Il player YouTube non riesce a caricarsi. Aspetta qualche secondo e riprova; " +
+        "se il problema persiste, controlla di non avere un ad-blocker o un'estensione che blocca YouTube su questa pagina."
+      );
       return;
     }
     clearInterval(stopTimer);
@@ -508,7 +554,6 @@ const firebaseConfig = {
     recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
     const recordingDone = new Promise((resolve) => { recorder.onstop = resolve; });
 
-    if (!playerReady) throw new Error("Il player YouTube non è ancora pronto, riprova tra un secondo.");
     player.loadVideoById({ videoId, startSeconds: start });
     player.playVideo();
     recorder.start();
@@ -559,6 +604,7 @@ const firebaseConfig = {
 
     if (!videoId) return setDetectStatus("Inserisci prima un link YouTube valido.");
     if (isNaN(start) || isNaN(end) || end <= start) return setDetectStatus("Inserisci prima inizio e fine validi.");
+    if (!playerReady) return setDetectStatus("Il player YouTube si sta ancora caricando: attendi qualche secondo e riprova.");
 
     const btn = document.getElementById("detect-btn");
     btn.disabled = true;
@@ -675,7 +721,7 @@ const firebaseConfig = {
     if (!sample) return;
 
     if (btn.dataset.action === "play") {
-      playSegment(sample.videoId, sample.start, sample.end, sample.name);
+      await playSegment(sample.videoId, sample.start, sample.end, sample.name);
     } else if (btn.dataset.action === "delete") {
       if (confirm(`Eliminare "${sample.name}"?`)) {
         try {
