@@ -1,0 +1,706 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Keep it Sample</title>
+<style>
+  :root {
+    --bg: #f5f6f8;
+    --card-bg: #ffffff;
+    --border: #e1e4e8;
+    --text: #1f2328;
+    --muted: #6a737d;
+    --accent: #2f6fed;
+    --accent-dark: #1f4fb0;
+    --danger: #d1453b;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 24px 20px 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 16px;
+    flex-wrap: wrap;
+  }
+  header .title h1 {
+    margin: 0 0 4px;
+    font-size: 1.6rem;
+  }
+  header .title p {
+    margin: 0;
+    color: var(--muted);
+    font-size: 0.95rem;
+    max-width: 560px;
+  }
+  #auth-bar {
+    font-size: 0.85rem;
+    color: var(--muted);
+    white-space: nowrap;
+  }
+  main {
+    max-width: 960px;
+    margin: 0 auto;
+    padding: 16px 20px 60px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+  section.card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 20px;
+  }
+  section.card h2 {
+    margin: 0 0 12px;
+    font-size: 1.05rem;
+  }
+  #player-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 16px;
+    align-items: flex-start;
+  }
+  #yt-player {
+    flex: 0 0 auto;
+  }
+  #now-playing {
+    flex: 1 1 200px;
+    min-width: 180px;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  #now-playing strong { color: var(--text); }
+  form {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 12px;
+    align-items: end;
+  }
+  form .field {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+  form .field.wide {
+    grid-column: 1 / -1;
+  }
+  label {
+    font-size: 0.8rem;
+    color: var(--muted);
+  }
+  input, select {
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 0.95rem;
+    background: #fff;
+    color: var(--text);
+  }
+  button {
+    cursor: pointer;
+    border: none;
+    border-radius: 6px;
+    padding: 9px 14px;
+    font-size: 0.9rem;
+    font-weight: 600;
+  }
+  button:disabled { opacity: 0.55; cursor: default; }
+  button.primary {
+    background: var(--accent);
+    color: #fff;
+  }
+  button.primary:hover { background: var(--accent-dark); }
+  button.ghost {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  button.ghost.active {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: #fff;
+  }
+  button.small {
+    padding: 5px 9px;
+    font-size: 0.78rem;
+  }
+  button.danger {
+    background: transparent;
+    color: var(--danger);
+    border: 1px solid var(--danger);
+  }
+  #filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 14px;
+  }
+  .sample-card {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 12px 14px;
+    background: #fff;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .sample-card .name {
+    font-weight: 600;
+    font-size: 0.98rem;
+  }
+  .badge {
+    align-self: flex-start;
+    font-size: 0.72rem;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: #eef2ff;
+    color: var(--accent-dark);
+    border: 1px solid #dbe4ff;
+  }
+  .time-range {
+    font-size: 0.82rem;
+    color: var(--muted);
+  }
+  .card-actions {
+    display: flex;
+    gap: 8px;
+    margin-top: 4px;
+  }
+  .empty-msg {
+    color: var(--muted);
+    font-size: 0.9rem;
+  }
+  .status-msg {
+    font-size: 0.82rem;
+    margin-top: 6px;
+  }
+  .status-msg.error { color: var(--danger); }
+  .status-msg.ok { color: #1a7f37; }
+  .hint {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-top: -4px;
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="title">
+    <h1>Keep it Sample</h1>
+    <p>Catalogo personale di campioni musicali: incolli un link YouTube, indichi da che secondo a che secondo, e lo riascolti quando vuoi.</p>
+  </div>
+  <div id="auth-bar">Caricamento...</div>
+</header>
+
+<main>
+
+  <section class="card">
+    <h2>Player</h2>
+    <div id="player-wrap">
+      <div id="yt-player"></div>
+      <div id="now-playing">
+        Nessun campione in riproduzione.
+        <div>
+          <button id="stop-btn" class="ghost small" type="button">Stop</button>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="card" id="form-card" hidden>
+    <h2>Aggiungi un campione</h2>
+    <form id="sample-form">
+      <div class="field wide">
+        <label for="f-url">Link YouTube (o ID video)</label>
+        <input id="f-url" type="text" placeholder="https://www.youtube.com/watch?v=..." required>
+      </div>
+      <div class="field">
+        <label for="f-name">Nome del campione</label>
+        <input id="f-name" type="text" placeholder="es. Basso pompato" required>
+      </div>
+      <div class="field">
+        <label for="f-category">Categoria</label>
+        <select id="f-category" required>
+          <option value="" disabled selected>Scegli...</option>
+          <option>Bass</option>
+          <option>Melodic</option>
+          <option>Guitar</option>
+          <option>Drums</option>
+          <option>Piano</option>
+          <option>Strings</option>
+          <option>Horns</option>
+          <option>Voice</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="f-start">Inizio (mm:ss o secondi)</label>
+        <input id="f-start" type="text" placeholder="es. 1:23" required>
+      </div>
+      <div class="field">
+        <label for="f-end">Fine (mm:ss o secondi)</label>
+        <input id="f-end" type="text" placeholder="es. 1:31" required>
+      </div>
+      <div class="field">
+        <label for="f-bpm">BPM (opzionale)</label>
+        <input id="f-bpm" type="number" min="1" step="1" placeholder="es. 128">
+      </div>
+      <div class="field">
+        <label for="f-key">Tonalità (opzionale)</label>
+        <input id="f-key" type="text" placeholder="es. A minor">
+      </div>
+      <div class="field">
+        <button id="detect-btn" class="ghost" type="button">Rileva BPM/Tonalità</button>
+      </div>
+      <div class="field wide">
+        <div id="detect-status" class="hint">
+          Il rilevamento analizza l'audio reale del frammento mentre suona: funziona solo su Chrome/Edge desktop e
+          chiede una volta di condividere l'audio di questa scheda. È una stima automatica, sempre modificabile prima di salvare.
+        </div>
+      </div>
+      <div class="field">
+        <button type="submit" class="primary">Salva campione</button>
+      </div>
+      <div class="field wide">
+        <div id="form-status" class="status-msg"></div>
+      </div>
+    </form>
+  </section>
+
+  <section class="card">
+    <h2>Libreria</h2>
+    <div id="filters"></div>
+    <br>
+    <div id="grid"></div>
+    <div id="empty-msg" class="empty-msg" hidden>Nessun campione salvato ancora in questa categoria.</div>
+  </section>
+
+</main>
+
+<!-- YouTube IFrame API -->
+<script src="https://www.youtube.com/iframe_api"></script>
+
+<script type="module">
+  import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
+  import {
+    getFirestore, collection, addDoc, deleteDoc, doc,
+    onSnapshot, query, orderBy, serverTimestamp
+  } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
+  import {
+    getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged
+  } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
+
+  // ---------------------------------------------------------------
+  // 1) CONFIGURAZIONE FIREBASE — sostituisci con i valori del tuo
+  //    progetto (Console Firebase > Impostazioni progetto > App web).
+  // ---------------------------------------------------------------
+const firebaseConfig = {
+    apiKey: "AIzaSyDqrWn9yL_gq8eHW3OjK4csCC_wWEEDcUY",
+    authDomain: "keep-it-sample.firebaseapp.com",
+    projectId: "keep-it-sample",
+    storageBucket: "keep-it-sample.firebasestorage.app",
+    messagingSenderId: "296582646295",
+    appId: "1:296582646295:web:ed8e3be9e1e3af4bf96a52"
+  };
+
+  const app = initializeApp(firebaseConfig);
+  const db = getFirestore(app);
+  const auth = getAuth(app);
+  const googleProvider = new GoogleAuthProvider();
+  const samplesCol = collection(db, "samples");
+
+  const CATEGORIES = ["Bass", "Melodic", "Guitar", "Drums", "Piano", "Strings", "Horns", "Voice"];
+
+  // ---------------------------------------------------------------
+  // Helpers
+  // ---------------------------------------------------------------
+  function extractVideoId(input) {
+    input = input.trim();
+    if (/^[A-Za-z0-9_-]{11}$/.test(input)) return input;
+    const m = input.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|v\/|shorts\/))([A-Za-z0-9_-]{11})/);
+    return m ? m[1] : null;
+  }
+
+  function parseTime(input) {
+    input = String(input).trim();
+    if (!input) return NaN;
+    if (input.includes(":")) {
+      const parts = input.split(":").map(Number);
+      if (parts.some(isNaN)) return NaN;
+      return parts.reduce((acc, val) => acc * 60 + val, 0);
+    }
+    const n = Number(input);
+    return isNaN(n) ? NaN : n;
+  }
+
+  function formatTime(sec) {
+    sec = Math.max(0, Math.round(sec));
+    const m = Math.floor(sec / 60);
+    const s = sec % 60;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  function setStatus(msg, kind) {
+    const el = document.getElementById("form-status");
+    el.textContent = msg;
+    el.className = "status-msg" + (kind ? " " + kind : "");
+  }
+
+  function setDetectStatus(msg) {
+    document.getElementById("detect-status").textContent = msg;
+  }
+
+  function escapeHtml(str) {
+    return String(str).replace(/[&<>"']/g, c => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[c]));
+  }
+
+  // ---------------------------------------------------------------
+  // Autenticazione (solo il proprietario può aggiungere/eliminare;
+  // la sicurezza vera è nelle regole Firestore, questo è solo per
+  // mostrare/nascondere i controlli)
+  // ---------------------------------------------------------------
+  let signedIn = false;
+
+  document.getElementById("auth-bar").addEventListener("click", (e) => {
+    if (e.target.id === "signin-btn") {
+      signInWithPopup(auth, googleProvider).catch(err => alert("Accesso non riuscito: " + err.message));
+    } else if (e.target.id === "signout-btn") {
+      signOut(auth);
+    }
+  });
+
+  onAuthStateChanged(auth, (user) => {
+    signedIn = !!user;
+    const authBar = document.getElementById("auth-bar");
+    const formCard = document.getElementById("form-card");
+    if (user) {
+      authBar.innerHTML = `Connesso come <strong>${escapeHtml(user.email || user.displayName || "utente")}</strong> &nbsp;`
+        + `<button id="signout-btn" class="ghost small" type="button">Esci</button>`;
+      formCard.hidden = false;
+    } else {
+      authBar.innerHTML = `<button id="signin-btn" class="ghost small" type="button">Accedi con Google</button>`;
+      formCard.hidden = true;
+    }
+    renderGrid();
+  });
+
+  // ---------------------------------------------------------------
+  // YouTube player
+  // ---------------------------------------------------------------
+  let player = null;
+  let playerReady = false;
+  let stopTimer = null;
+
+  window.onYouTubeIframeAPIReady = function () {
+    player = new YT.Player("yt-player", {
+      height: "220",
+      width: "360",
+      videoId: "",
+      playerVars: { rel: 0 },
+      events: {
+        onReady: () => { playerReady = true; }
+      }
+    });
+  };
+
+  function playSegment(videoId, start, end, name) {
+    if (!playerReady) {
+      alert("Il player si sta ancora caricando, riprova tra un secondo.");
+      return;
+    }
+    clearInterval(stopTimer);
+    player.loadVideoById({ videoId, startSeconds: start });
+    player.playVideo();
+    document.getElementById("now-playing").innerHTML =
+      `In riproduzione: <strong>${escapeHtml(name)}</strong> (${formatTime(start)} - ${formatTime(end)})
+       <div><button id="stop-btn" class="ghost small" type="button">Stop</button></div>`;
+    bindStopButton();
+    stopTimer = setInterval(() => {
+      if (!player.getCurrentTime) return;
+      if (player.getCurrentTime() >= end) {
+        player.pauseVideo();
+        clearInterval(stopTimer);
+      }
+    }, 200);
+  }
+
+  function stopPlayback() {
+    clearInterval(stopTimer);
+    if (player && player.pauseVideo) player.pauseVideo();
+    document.getElementById("now-playing").innerHTML =
+      `Nessun campione in riproduzione.
+       <div><button id="stop-btn" class="ghost small" type="button">Stop</button></div>`;
+    bindStopButton();
+  }
+
+  function bindStopButton() {
+    document.getElementById("stop-btn").addEventListener("click", stopPlayback);
+  }
+  bindStopButton();
+
+  // ---------------------------------------------------------------
+  // Rilevamento automatico BPM / Tonalità
+  // Cattura l'audio reale della scheda mentre il frammento suona
+  // (nessun file viene scaricato o salvato: il buffer è usato solo
+  // per l'analisi e poi scartato) e lo analizza con essentia.js.
+  // Funziona solo su Chrome/Edge desktop.
+  // ---------------------------------------------------------------
+  let essentiaInstance = null;
+
+  function loadScriptOnce(src) {
+    return new Promise((resolve, reject) => {
+      if (document.querySelector(`script[src="${src}"]`)) return resolve();
+      const s = document.createElement("script");
+      s.src = src;
+      s.onload = () => resolve();
+      s.onerror = () => reject(new Error("Impossibile caricare " + src));
+      document.head.appendChild(s);
+    });
+  }
+
+  async function ensureEssentia() {
+    if (essentiaInstance) return essentiaInstance;
+    await loadScriptOnce("https://cdn.jsdelivr.net/npm/essentia.js@0.1.3/dist/essentia-wasm.web.js");
+    await loadScriptOnce("https://cdn.jsdelivr.net/npm/essentia.js@0.1.3/dist/essentia.js-core.js");
+    const wasmModule = await window.EssentiaWASM();
+    essentiaInstance = new window.Essentia(wasmModule);
+    return essentiaInstance;
+  }
+
+  async function captureSegmentAudio(videoId, start, end) {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+      throw new Error("Il tuo browser non supporta la cattura audio (usa Chrome o Edge su desktop).");
+    }
+    const duration = end - start;
+    const displayStream = await navigator.mediaDevices.getDisplayMedia({
+      video: true,
+      audio: true,
+      preferCurrentTab: true
+    });
+
+    const audioTracks = displayStream.getAudioTracks();
+    displayStream.getVideoTracks().forEach(t => t.stop());
+    if (audioTracks.length === 0) {
+      displayStream.getTracks().forEach(t => t.stop());
+      throw new Error('Nessun audio condiviso: nella finestra di condivisione spunta "Condividi audio scheda" e riprova.');
+    }
+
+    const audioOnlyStream = new MediaStream(audioTracks);
+    const recorder = new MediaRecorder(audioOnlyStream);
+    const chunks = [];
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) chunks.push(e.data); };
+    const recordingDone = new Promise((resolve) => { recorder.onstop = resolve; });
+
+    if (!playerReady) throw new Error("Il player YouTube non è ancora pronto, riprova tra un secondo.");
+    player.loadVideoById({ videoId, startSeconds: start });
+    player.playVideo();
+    recorder.start();
+
+    await new Promise((r) => setTimeout(r, (duration + 1.5) * 1000));
+
+    recorder.stop();
+    player.pauseVideo();
+    displayStream.getTracks().forEach((t) => t.stop());
+    await recordingDone;
+
+    const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
+    const arrayBuffer = await blob.arrayBuffer();
+    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+    return audioBuffer;
+  }
+
+  function toMonoFloat32(audioBuffer) {
+    const numCh = audioBuffer.numberOfChannels;
+    if (numCh === 1) return audioBuffer.getChannelData(0);
+    const mixed = new Float32Array(audioBuffer.length);
+    for (let ch = 0; ch < numCh; ch++) {
+      const chData = audioBuffer.getChannelData(ch);
+      for (let i = 0; i < chData.length; i++) mixed[i] += chData[i] / numCh;
+    }
+    return mixed;
+  }
+
+  async function detectBpmAndKey(videoId, start, end) {
+    const audioBuffer = await captureSegmentAudio(videoId, start, end);
+    const mono = toMonoFloat32(audioBuffer);
+    const ess = await ensureEssentia();
+    const vectorSignal = ess.arrayToVector(mono);
+    const rhythm = ess.RhythmExtractor2013(vectorSignal);
+    const keyResult = ess.KeyExtractor(vectorSignal);
+    return {
+      bpm: Math.round(rhythm.bpm),
+      key: `${keyResult.key} ${keyResult.scale}`
+    };
+  }
+
+  document.getElementById("detect-btn").addEventListener("click", async () => {
+    const url = document.getElementById("f-url").value;
+    const start = parseTime(document.getElementById("f-start").value);
+    const end = parseTime(document.getElementById("f-end").value);
+    const videoId = extractVideoId(url);
+
+    if (!videoId) return setDetectStatus("Inserisci prima un link YouTube valido.");
+    if (isNaN(start) || isNaN(end) || end <= start) return setDetectStatus("Inserisci prima inizio e fine validi.");
+
+    const btn = document.getElementById("detect-btn");
+    btn.disabled = true;
+    setDetectStatus("Condividi l'audio di questa scheda quando richiesto, poi attendi la riproduzione del frammento...");
+    try {
+      const result = await detectBpmAndKey(videoId, start, end);
+      document.getElementById("f-bpm").value = result.bpm;
+      document.getElementById("f-key").value = result.key;
+      setDetectStatus(`Rilevato: ${result.bpm} BPM, ${result.key}. Puoi correggerlo prima di salvare.`);
+    } catch (err) {
+      console.error(err);
+      setDetectStatus("Rilevamento non riuscito (" + err.message + "). Inserisci i valori manualmente.");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---------------------------------------------------------------
+  // Form: aggiungi campione
+  // ---------------------------------------------------------------
+  document.getElementById("sample-form").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const url = document.getElementById("f-url").value;
+    const name = document.getElementById("f-name").value.trim();
+    const category = document.getElementById("f-category").value;
+    const start = parseTime(document.getElementById("f-start").value);
+    const end = parseTime(document.getElementById("f-end").value);
+    const bpmRaw = document.getElementById("f-bpm").value;
+    const keyRaw = document.getElementById("f-key").value.trim();
+
+    const videoId = extractVideoId(url);
+    if (!videoId) return setStatus("Link YouTube non riconosciuto.", "error");
+    if (!name) return setStatus("Inserisci un nome per il campione.", "error");
+    if (!category) return setStatus("Scegli una categoria.", "error");
+    if (isNaN(start) || isNaN(end)) return setStatus("Formato tempo non valido (usa mm:ss o secondi).", "error");
+    if (end <= start) return setStatus("Il tempo di fine deve essere dopo l'inizio.", "error");
+
+    try {
+      setStatus("Salvataggio...", "");
+      await addDoc(samplesCol, {
+        name, category, videoId, start, end,
+        bpm: bpmRaw ? Number(bpmRaw) : null,
+        key: keyRaw || null,
+        createdAt: serverTimestamp()
+      });
+      document.getElementById("sample-form").reset();
+      setDetectStatus("Il rilevamento analizza l'audio reale del frammento mentre suona: funziona solo su Chrome/Edge desktop e chiede una volta di condividere l'audio di questa scheda. È una stima automatica, sempre modificabile prima di salvare.");
+      setStatus("Campione salvato.", "ok");
+    } catch (err) {
+      console.error(err);
+      setStatus("Errore nel salvataggio (verifica di aver eseguito l'accesso): " + err.message, "error");
+    }
+  });
+
+  // ---------------------------------------------------------------
+  // Filtri per categoria
+  // ---------------------------------------------------------------
+  let currentFilter = "Tutte";
+  let allSamples = [];
+
+  function renderFilters() {
+    const wrap = document.getElementById("filters");
+    wrap.innerHTML = "";
+    ["Tutte", ...CATEGORIES].forEach(cat => {
+      const btn = document.createElement("button");
+      btn.className = "ghost small" + (cat === currentFilter ? " active" : "");
+      btn.textContent = cat;
+      btn.type = "button";
+      btn.addEventListener("click", () => {
+        currentFilter = cat;
+        renderFilters();
+        renderGrid();
+      });
+      wrap.appendChild(btn);
+    });
+  }
+
+  // ---------------------------------------------------------------
+  // Griglia campioni (aggiornata in tempo reale da Firestore)
+  // ---------------------------------------------------------------
+  function renderGrid() {
+    const grid = document.getElementById("grid");
+    const emptyMsg = document.getElementById("empty-msg");
+    grid.innerHTML = "";
+
+    const list = allSamples.filter(s => currentFilter === "Tutte" || s.category === currentFilter);
+    emptyMsg.hidden = list.length > 0;
+
+    list.forEach(s => {
+      const card = document.createElement("div");
+      card.className = "sample-card";
+      const metaParts = [];
+      if (s.bpm) metaParts.push(`${s.bpm} BPM`);
+      if (s.key) metaParts.push(escapeHtml(s.key));
+      const metaLine = metaParts.length ? ` · ${metaParts.join(" · ")}` : "";
+      card.innerHTML = `
+        <span class="badge">${escapeHtml(s.category)}</span>
+        <div class="name">${escapeHtml(s.name)}</div>
+        <div class="time-range">${formatTime(s.start)} - ${formatTime(s.end)}${metaLine}</div>
+        <div class="card-actions">
+          <button class="primary small" data-action="play" data-id="${s.id}">Riproduci</button>
+          ${signedIn ? `<button class="danger small" data-action="delete" data-id="${s.id}">Elimina</button>` : ""}
+        </div>
+      `;
+      grid.appendChild(card);
+    });
+  }
+
+  document.getElementById("grid").addEventListener("click", async (e) => {
+    const btn = e.target.closest("button");
+    if (!btn) return;
+    const id = btn.dataset.id;
+    const sample = allSamples.find(s => s.id === id);
+    if (!sample) return;
+
+    if (btn.dataset.action === "play") {
+      playSegment(sample.videoId, sample.start, sample.end, sample.name);
+    } else if (btn.dataset.action === "delete") {
+      if (confirm(`Eliminare "${sample.name}"?`)) {
+        try {
+          await deleteDoc(doc(db, "samples", id));
+        } catch (err) {
+          alert("Impossibile eliminare: " + err.message);
+        }
+      }
+    }
+  });
+
+  // ---------------------------------------------------------------
+  // Ascolto in tempo reale di Firestore
+  // ---------------------------------------------------------------
+  const q = query(samplesCol, orderBy("createdAt", "desc"));
+  onSnapshot(q, (snap) => {
+    allSamples = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    renderGrid();
+  }, (err) => {
+    console.error(err);
+  });
+
+  renderFilters();
+  renderGrid();
+</script>
+
+</body>
+</html>
