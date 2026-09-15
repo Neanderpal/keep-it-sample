@@ -151,6 +151,11 @@
     color: var(--danger);
     border: 1px solid var(--danger);
   }
+  button.record {
+  background: #e8590c;
+  color: #fff;
+}
+button.record:hover { background: #c94a04; }
   .or-divider {
     text-align: center;
     color: var(--muted);
@@ -305,7 +310,7 @@
         <div class="or-divider">— or —</div>
       </div>
       <div class="field" id="record-btn-field">
-        <button id="record-btn" class="ghost" type="button">Record a sample</button>
+        <button id="record-btn" class="record" type="button">Record a sample</button>
       </div>
       <div class="field wide" id="record-panel" hidden>
         <div id="record-status" class="hint">
