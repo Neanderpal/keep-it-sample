@@ -88,6 +88,10 @@
     color: var(--muted);
   }
   #now-playing strong { color: var(--text); }
+  #now-playing audio {
+    width: 100%;
+    margin-top: 4px;
+  }
   form {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
@@ -146,6 +150,27 @@
     background: transparent;
     color: var(--danger);
     border: 1px solid var(--danger);
+  }
+  .or-divider {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.78rem;
+    margin: 0;
+  }
+  .record-controls {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+  #record-timer {
+    font-size: 0.85rem;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+  #record-preview, #edit-audio-preview {
+    width: 100%;
+    margin-top: 6px;
   }
   #filters {
     display: flex;
@@ -249,25 +274,52 @@
   <section class="card" id="form-card">
     <h2 id="form-heading">Add a sample</h2>
     <form id="sample-form">
-      <div class="field wide">
+      <div class="field wide" id="source-fields-youtube">
         <label for="f-url">YouTube link (or video ID)</label>
-        <input id="f-url" type="text" placeholder="https://www.youtube.com/watch?v=..." required>
+        <input id="f-url" type="text" placeholder="https://www.youtube.com/watch?v=...">
       </div>
-      <div class="field">
+      <div class="field" id="source-field-start">
         <label for="f-start">Start (mm:ss or seconds)</label>
-        <input id="f-start" type="text" placeholder="e.g. 1:23" required>
+        <input id="f-start" type="text" placeholder="e.g. 1:23">
       </div>
-      <div class="field">
+      <div class="field" id="source-field-end">
         <label for="f-end">End (mm:ss or seconds)</label>
-        <input id="f-end" type="text" placeholder="e.g. 1:31" required>
+        <input id="f-end" type="text" placeholder="e.g. 1:31">
       </div>
-      <div class="field">
+      <div class="field" id="source-field-detect">
         <button id="detect-btn" class="ghost" type="button" disabled>Detect BPM and Key</button>
       </div>
-      <div class="field wide">
+      <div class="field wide" id="source-field-detect-status">
         <div id="detect-status" class="hint">
           Detection analyzes the actual audio of the segment as it plays: it only works on Chrome/Edge desktop and
           will ask once to share this tab's audio. It's an automatic estimate, always editable before saving.
+        </div>
+      </div>
+
+      <div class="field wide" id="source-fields-note" hidden>
+        <div class="hint">This sample was recorded. Editing here updates its name, category, BPM and key only — delete it and record again to change the audio.</div>
+        <audio id="edit-audio-preview" controls hidden></audio>
+      </div>
+
+      <div class="field wide" id="record-section">
+        <div class="or-divider">— or —</div>
+      </div>
+      <div class="field" id="record-btn-field">
+        <button id="record-btn" class="ghost" type="button">Record a sample</button>
+      </div>
+      <div class="field wide" id="record-panel" hidden>
+        <div id="record-status" class="hint">
+          Tap "Start recording" and play or sing your idea (max 15 seconds). Works best on Chrome/Edge; play back a
+          recording in the same browser you recorded it in.
+        </div>
+        <div class="record-controls">
+          <button id="record-toggle-btn" class="ghost small" type="button">Start recording</button>
+          <span id="record-timer">0:00</span>
+        </div>
+        <audio id="record-preview" controls hidden></audio>
+        <div class="record-controls">
+          <button id="rerecord-btn" class="ghost small" type="button" hidden>Re-record</button>
+          <button id="record-detect-btn" class="ghost small" type="button" hidden>Detect BPM and Key</button>
         </div>
       </div>
 
@@ -305,7 +357,7 @@
       </div>
 
       <div class="field wide" id="signin-prompt">
-        <div class="hint">You need to create an account to save this sample to the library.</div>
+        <div class="hint">You need to sign in with Google to save this sample to the library.</div>
         <button id="signin-prompt-btn" class="ghost small" type="button">Sign in with Google</button>
       </div>
 
@@ -421,27 +473,33 @@
     "Detection analyzes the actual audio of the segment as it plays: it only works on Chrome/Edge desktop and " +
     "will ask once to share this tab's audio. It's an automatic estimate, always editable before saving.";
 
+  const DEFAULT_RECORD_HINT =
+    'Tap "Start recording" and play or sing your idea (max 15 seconds). Works best on Chrome/Edge; play back a ' +
+    "recording in the same browser you recorded it in.";
+
   // ---------------------------------------------------------------
-  // Authentication. Anyone can browse, play samples and run BPM/Key
-  // detection. Only the signed-in owner can save/edit/delete samples;
-  // the real enforcement lives in the Firestore security rules, this
-  // just shows/hides the relevant controls.
+  // Authentication. Anyone can browse, play samples, and use the
+  // YouTube-based BPM/Key detector. Only the signed-in owner can
+  // record, save, edit or delete samples; the real enforcement lives
+  // in the Firestore security rules, this just shows/hides controls.
   // ---------------------------------------------------------------
   let signedIn = false;
 
   function doSignIn() {
-    signInWithPopup(auth, googleProvider).catch(err => alert("Sign-in failed: " + err.message));
+    return signInWithPopup(auth, googleProvider);
   }
 
   document.getElementById("auth-bar").addEventListener("click", (e) => {
     if (e.target.id === "signin-btn") {
-      doSignIn();
+      doSignIn().catch(err => alert("Sign-in failed: " + err.message));
     } else if (e.target.id === "signout-btn") {
       signOut(auth);
     }
   });
 
-  document.getElementById("signin-prompt-btn").addEventListener("click", doSignIn);
+  document.getElementById("signin-prompt-btn").addEventListener("click", () => {
+    doSignIn().catch(err => alert("Sign-in failed: " + err.message));
+  });
 
   onAuthStateChanged(auth, (user) => {
     signedIn = !!user;
@@ -575,9 +633,21 @@
     }, 200);
   }
 
+  function playRecording(audioData, name) {
+    clearInterval(stopTimer);
+    if (player && player.pauseVideo) player.pauseVideo();
+    document.getElementById("now-playing").innerHTML =
+      `Now playing: <strong>${escapeHtml(name)}</strong>
+       <audio id="recording-audio" controls autoplay src="${audioData}"></audio>
+       <div><button id="stop-btn" class="ghost small" type="button">Stop</button></div>`;
+    bindStopButton();
+  }
+
   function stopPlayback() {
     clearInterval(stopTimer);
     if (player && player.pauseVideo) player.pauseVideo();
+    const recAudio = document.getElementById("recording-audio");
+    if (recAudio) recAudio.pause();
     document.getElementById("now-playing").innerHTML =
       `No sample playing.
        <div><button id="stop-btn" class="ghost small" type="button">Stop</button></div>`;
@@ -590,11 +660,8 @@
   bindStopButton();
 
   // ---------------------------------------------------------------
-  // Automatic BPM / Key detection
-  // Captures the tab's real audio while the segment plays (no file is
-  // ever downloaded or stored: the buffer is only used for analysis and
-  // then discarded) and analyzes it with essentia.js. Chrome/Edge
-  // desktop only. Available to everyone, signed in or not.
+  // Automatic BPM / Key detection (shared by the YouTube path and the
+  // microphone-recording path below). Chrome/Edge desktop only.
   // ---------------------------------------------------------------
   let essentiaInstance = null;
 
@@ -616,6 +683,36 @@
     const wasmModule = await window.EssentiaWASM();
     essentiaInstance = new window.Essentia(wasmModule);
     return essentiaInstance;
+  }
+
+  function toMonoFloat32(audioBuffer) {
+    const numCh = audioBuffer.numberOfChannels;
+    if (numCh === 1) return audioBuffer.getChannelData(0);
+    const mixed = new Float32Array(audioBuffer.length);
+    for (let ch = 0; ch < numCh; ch++) {
+      const chData = audioBuffer.getChannelData(ch);
+      for (let i = 0; i < chData.length; i++) mixed[i] += chData[i] / numCh;
+    }
+    return mixed;
+  }
+
+  async function analyzeAudioBuffer(audioBuffer) {
+    const mono = toMonoFloat32(audioBuffer);
+    const ess = await ensureEssentia();
+    const vectorSignal = ess.arrayToVector(mono);
+    const rhythm = ess.RhythmExtractor2013(vectorSignal);
+    // "edma" profile is tuned for pop/electronic music and reduces (not
+    // eliminates) the classic tonic/dominant key-detection confusion;
+    // we also pass the real sample rate of the captured audio instead
+    // of assuming the 44100 Hz default.
+    const keyResult = ess.KeyExtractor(
+      vectorSignal, true, 4096, 4096, 12, 3500, 60, 25, 0.2,
+      "edma", audioBuffer.sampleRate, 0.0001, 440, "cosine", "hann"
+    );
+    return {
+      bpm: Math.round(rhythm.bpm),
+      key: `${keyResult.key} ${keyResult.scale}`
+    };
   }
 
   async function captureSegmentAudio(videoId, start, end) {
@@ -667,39 +764,12 @@
     const blob = new Blob(chunks, { type: recorder.mimeType || "audio/webm" });
     const arrayBuffer = await blob.arrayBuffer();
     const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
-    return audioBuffer;
-  }
-
-  function toMonoFloat32(audioBuffer) {
-    const numCh = audioBuffer.numberOfChannels;
-    if (numCh === 1) return audioBuffer.getChannelData(0);
-    const mixed = new Float32Array(audioBuffer.length);
-    for (let ch = 0; ch < numCh; ch++) {
-      const chData = audioBuffer.getChannelData(ch);
-      for (let i = 0; i < chData.length; i++) mixed[i] += chData[i] / numCh;
-    }
-    return mixed;
+    return audioCtx.decodeAudioData(arrayBuffer);
   }
 
   async function detectBpmAndKey(videoId, start, end) {
     const audioBuffer = await captureSegmentAudio(videoId, start, end);
-    const mono = toMonoFloat32(audioBuffer);
-    const ess = await ensureEssentia();
-    const vectorSignal = ess.arrayToVector(mono);
-    const rhythm = ess.RhythmExtractor2013(vectorSignal);
-    // "edma" profile is tuned for pop/electronic music and reduces (not
-    // eliminates) the classic tonic/dominant key-detection confusion;
-    // we also pass the real sample rate of the captured audio instead
-    // of assuming the 44100 Hz default.
-    const keyResult = ess.KeyExtractor(
-      vectorSignal, true, 4096, 4096, 12, 3500, 60, 25, 0.2,
-      "edma", audioBuffer.sampleRate, 0.0001, 440, "cosine", "hann"
-    );
-    return {
-      bpm: Math.round(rhythm.bpm),
-      key: `${keyResult.key} ${keyResult.scale}`
-    };
+    return analyzeAudioBuffer(audioBuffer);
   }
 
   document.getElementById("detect-btn").addEventListener("click", async () => {
@@ -729,15 +799,178 @@
   });
 
   // ---------------------------------------------------------------
+  // Record a sample (microphone). Signed-in owner only. Clips are
+  // capped at 15 seconds and stored directly inside the Firestore
+  // document as a base64 audio string, so no extra Firebase product
+  // (Cloud Storage, which now requires a paid Blaze plan) is needed.
+  // ---------------------------------------------------------------
+  const RECORD_MAX_SECONDS = 15;
+  let micStream = null;
+  let micRecorder = null;
+  let micChunks = [];
+  let recordTimerInterval = null;
+  let recordStartTime = 0;
+  let recordedBlob = null;
+  let recordedAudioDataUrl = null;
+  let recordedDuration = 0;
+
+  function setRecordStatus(msg) {
+    document.getElementById("record-status").textContent = msg;
+  }
+
+  function blobToDataUrl(blob) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+
+  function resetRecordingPanel() {
+    clearInterval(recordTimerInterval);
+    if (micStream) { micStream.getTracks().forEach(t => t.stop()); micStream = null; }
+    micRecorder = null;
+    micChunks = [];
+    recordedBlob = null;
+    recordedAudioDataUrl = null;
+    recordedDuration = 0;
+    document.getElementById("record-panel").hidden = true;
+    document.getElementById("record-toggle-btn").textContent = "Start recording";
+    document.getElementById("record-timer").textContent = "0:00";
+    const preview = document.getElementById("record-preview");
+    preview.hidden = true;
+    preview.removeAttribute("src");
+    document.getElementById("rerecord-btn").hidden = true;
+    document.getElementById("record-detect-btn").hidden = true;
+    setRecordStatus(DEFAULT_RECORD_HINT);
+  }
+
+  document.getElementById("record-btn").addEventListener("click", async () => {
+    if (!signedIn) {
+      try {
+        await doSignIn();
+      } catch (err) {
+        alert("Sign-in failed: " + err.message);
+        return;
+      }
+    }
+    document.getElementById("record-panel").hidden = false;
+    document.getElementById("record-panel").scrollIntoView({ behavior: "smooth", block: "nearest" });
+  });
+
+  document.getElementById("record-toggle-btn").addEventListener("click", async () => {
+    if (micRecorder && micRecorder.state === "recording") {
+      stopRecording();
+      return;
+    }
+    try {
+      micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    } catch (err) {
+      setRecordStatus("Microphone access denied or unavailable: " + err.message);
+      return;
+    }
+    micChunks = [];
+    micRecorder = new MediaRecorder(micStream);
+    micRecorder.ondataavailable = (e) => { if (e.data.size > 0) micChunks.push(e.data); };
+    micRecorder.onstop = onRecordingStopped;
+    micRecorder.start();
+    recordStartTime = Date.now();
+    document.getElementById("record-toggle-btn").textContent = "Stop recording";
+    document.getElementById("record-preview").hidden = true;
+    document.getElementById("rerecord-btn").hidden = true;
+    document.getElementById("record-detect-btn").hidden = true;
+    setRecordStatus("Recording...");
+    recordTimerInterval = setInterval(() => {
+      const elapsed = (Date.now() - recordStartTime) / 1000;
+      document.getElementById("record-timer").textContent = formatTime(elapsed);
+      if (elapsed >= RECORD_MAX_SECONDS) stopRecording();
+    }, 100);
+  });
+
+  function stopRecording() {
+    clearInterval(recordTimerInterval);
+    if (micRecorder && micRecorder.state !== "inactive") micRecorder.stop();
+    if (micStream) micStream.getTracks().forEach(t => t.stop());
+    document.getElementById("record-toggle-btn").textContent = "Start recording";
+  }
+
+  async function onRecordingStopped() {
+    recordedDuration = Math.min(RECORD_MAX_SECONDS, (Date.now() - recordStartTime) / 1000);
+    recordedBlob = new Blob(micChunks, { type: (micRecorder && micRecorder.mimeType) || "audio/webm" });
+    recordedAudioDataUrl = await blobToDataUrl(recordedBlob);
+    const preview = document.getElementById("record-preview");
+    preview.src = recordedAudioDataUrl;
+    preview.hidden = false;
+    document.getElementById("rerecord-btn").hidden = false;
+    document.getElementById("record-detect-btn").hidden = false;
+    setRecordStatus(`Recorded ${formatTime(recordedDuration)}. Listen back, then fill in the details below to save it, or re-record.`);
+  }
+
+  document.getElementById("rerecord-btn").addEventListener("click", () => {
+    recordedBlob = null;
+    recordedAudioDataUrl = null;
+    recordedDuration = 0;
+    document.getElementById("record-preview").hidden = true;
+    document.getElementById("rerecord-btn").hidden = true;
+    document.getElementById("record-detect-btn").hidden = true;
+    document.getElementById("record-timer").textContent = "0:00";
+    setRecordStatus(DEFAULT_RECORD_HINT);
+  });
+
+  document.getElementById("record-detect-btn").addEventListener("click", async () => {
+    if (!recordedBlob) return;
+    const btn = document.getElementById("record-detect-btn");
+    btn.disabled = true;
+    setDetectStatus("Analyzing your recording...");
+    try {
+      const arrayBuffer = await recordedBlob.arrayBuffer();
+      const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      const audioBuffer = await audioCtx.decodeAudioData(arrayBuffer);
+      const result = await analyzeAudioBuffer(audioBuffer);
+      document.getElementById("f-bpm").value = result.bpm;
+      document.getElementById("f-key").value = result.key;
+      setDetectStatus(`Detected: ${result.bpm} BPM, ${result.key}. You can edit it before saving.`);
+    } catch (err) {
+      console.error(err);
+      setDetectStatus("Detection failed (" + err.message + "). Enter the values manually.");
+    } finally {
+      btn.disabled = false;
+    }
+  });
+
+  // ---------------------------------------------------------------
   // Form: add / edit a sample (signed-in owner only)
   // ---------------------------------------------------------------
   let editingId = null;
+  let editingSource = "youtube";
+
+  function showYoutubeSourceFields(show) {
+    ["source-fields-youtube", "source-field-start", "source-field-end", "source-field-detect", "source-field-detect-status"]
+      .forEach(id => { document.getElementById(id).hidden = !show; });
+  }
 
   function startEdit(sample) {
     editingId = sample.id;
-    document.getElementById("f-url").value = sample.videoId;
-    document.getElementById("f-start").value = formatTime(sample.start);
-    document.getElementById("f-end").value = formatTime(sample.end);
+    editingSource = sample.source || "youtube";
+    resetRecordingPanel();
+    document.getElementById("record-section").hidden = true;
+    document.getElementById("record-btn-field").hidden = true;
+
+    if (editingSource === "recording") {
+      showYoutubeSourceFields(false);
+      document.getElementById("source-fields-note").hidden = false;
+      const preview = document.getElementById("edit-audio-preview");
+      preview.src = sample.audioData;
+      preview.hidden = false;
+    } else {
+      showYoutubeSourceFields(true);
+      document.getElementById("source-fields-note").hidden = true;
+      document.getElementById("edit-audio-preview").hidden = true;
+      document.getElementById("f-url").value = sample.videoId;
+      document.getElementById("f-start").value = formatTime(sample.start);
+      document.getElementById("f-end").value = formatTime(sample.end);
+    }
     document.getElementById("f-name").value = sample.name;
     document.getElementById("f-category").value = sample.category;
     document.getElementById("f-bpm").value = sample.bpm || "";
@@ -751,10 +984,17 @@
 
   function cancelEdit() {
     editingId = null;
+    editingSource = "youtube";
     document.getElementById("sample-form").reset();
     document.getElementById("form-heading").textContent = "Add a sample";
     document.getElementById("save-submit-btn").textContent = "Save sample";
     document.getElementById("cancel-edit-btn").hidden = true;
+    showYoutubeSourceFields(true);
+    document.getElementById("source-fields-note").hidden = true;
+    document.getElementById("edit-audio-preview").hidden = true;
+    document.getElementById("record-section").hidden = false;
+    document.getElementById("record-btn-field").hidden = false;
+    resetRecordingPanel();
     setStatus("", "");
   }
 
@@ -762,23 +1002,16 @@
 
   document.getElementById("sample-form").addEventListener("submit", async (e) => {
     e.preventDefault();
-    const url = document.getElementById("f-url").value;
     const name = document.getElementById("f-name").value.trim();
     const category = document.getElementById("f-category").value;
-    const start = parseTime(document.getElementById("f-start").value);
-    const end = parseTime(document.getElementById("f-end").value);
     const bpmRaw = document.getElementById("f-bpm").value;
     const keyRaw = document.getElementById("f-key").value.trim();
 
-    const videoId = extractVideoId(url);
-    if (!videoId) return setStatus("YouTube link not recognized.", "error");
     if (!name) return setStatus("Enter a name for the sample.", "error");
     if (!category) return setStatus("Choose a category.", "error");
-    if (isNaN(start) || isNaN(end)) return setStatus("Invalid time format (use mm:ss or seconds).", "error");
-    if (end <= start) return setStatus("The end time must be after the start.", "error");
 
-    const data = {
-      name, category, videoId, start, end,
+    const commonData = {
+      name, category,
       bpm: bpmRaw ? Number(bpmRaw) : null,
       key: keyRaw || null
     };
@@ -786,11 +1019,43 @@
     try {
       if (editingId) {
         setStatus("Saving changes...", "");
-        await updateDoc(doc(db, "samples", editingId), data);
+        if (editingSource === "recording") {
+          await updateDoc(doc(db, "samples", editingId), commonData);
+        } else {
+          const url = document.getElementById("f-url").value;
+          const start = parseTime(document.getElementById("f-start").value);
+          const end = parseTime(document.getElementById("f-end").value);
+          const videoId = extractVideoId(url);
+          if (!videoId) return setStatus("YouTube link not recognized.", "error");
+          if (isNaN(start) || isNaN(end)) return setStatus("Invalid time format (use mm:ss or seconds).", "error");
+          if (end <= start) return setStatus("The end time must be after the start.", "error");
+          await updateDoc(doc(db, "samples", editingId), { ...commonData, videoId, start, end });
+        }
         setStatus("Sample updated.", "ok");
-      } else {
+      } else if (recordedAudioDataUrl) {
         setStatus("Saving...", "");
-        await addDoc(samplesCol, { ...data, used: false, createdAt: serverTimestamp() });
+        await addDoc(samplesCol, {
+          ...commonData,
+          source: "recording",
+          audioData: recordedAudioDataUrl,
+          duration: recordedDuration,
+          used: false,
+          createdAt: serverTimestamp()
+        });
+        setStatus("Sample saved.", "ok");
+      } else {
+        const url = document.getElementById("f-url").value;
+        const start = parseTime(document.getElementById("f-start").value);
+        const end = parseTime(document.getElementById("f-end").value);
+        const videoId = extractVideoId(url);
+        if (!videoId) return setStatus("YouTube link not recognized.", "error");
+        if (isNaN(start) || isNaN(end)) return setStatus("Invalid time format (use mm:ss or seconds).", "error");
+        if (end <= start) return setStatus("The end time must be after the start.", "error");
+        setStatus("Saving...", "");
+        await addDoc(samplesCol, {
+          ...commonData, source: "youtube", videoId, start, end,
+          used: false, createdAt: serverTimestamp()
+        });
         setStatus("Sample saved.", "ok");
       }
       cancelEdit();
@@ -842,10 +1107,13 @@
       if (s.bpm) metaParts.push(`${s.bpm} BPM`);
       if (s.key) metaParts.push(escapeHtml(s.key));
       const metaLine = metaParts.length ? ` · ${metaParts.join(" · ")}` : "";
+      const rangeLine = s.source === "recording"
+        ? `Recording · ${formatTime(s.duration || 0)}`
+        : `${formatTime(s.start)} - ${formatTime(s.end)}`;
       card.innerHTML = `
         <span class="badge">${escapeHtml(s.category)}</span>
         <div class="name">${escapeHtml(s.name)}</div>
-        <div class="time-range">${formatTime(s.start)} - ${formatTime(s.end)}${metaLine}</div>
+        <div class="time-range">${rangeLine}${metaLine}</div>
         <label class="used-toggle">
           <input type="checkbox" data-action="toggle-used" data-id="${s.id}" ${s.used ? "checked" : ""} ${signedIn ? "" : "disabled"}>
           Used
@@ -868,7 +1136,11 @@
     if (!sample) return;
 
     if (btn.dataset.action === "play") {
-      await playSegment(sample.videoId, sample.start, sample.end, sample.name);
+      if (sample.source === "recording") {
+        playRecording(sample.audioData, sample.name);
+      } else {
+        await playSegment(sample.videoId, sample.start, sample.end, sample.name);
+      }
     } else if (btn.dataset.action === "edit") {
       startEdit(sample);
     } else if (btn.dataset.action === "delete") {
