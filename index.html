@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -71,7 +71,7 @@
     gap: 16px;
     align-items: flex-start;
   }
-    #yt-player {
+  #yt-player {
     flex: 1 1 320px;
     max-width: 360px;
   }
@@ -170,6 +170,10 @@
     font-weight: 600;
     font-size: 0.98rem;
   }
+  .sample-card.used .name {
+    text-decoration: line-through;
+    opacity: 0.6;
+  }
   .badge {
     align-self: flex-start;
     font-size: 0.72rem;
@@ -183,8 +187,17 @@
     font-size: 0.82rem;
     color: var(--muted);
   }
+  .used-toggle {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.82rem;
+    color: var(--muted);
+    cursor: pointer;
+  }
   .card-actions {
     display: flex;
+    flex-wrap: wrap;
     gap: 8px;
     margin-top: 4px;
   }
@@ -203,6 +216,9 @@
     color: var(--muted);
     margin-top: -4px;
   }
+  #signin-prompt button {
+    margin-top: 6px;
+  }
 </style>
 </head>
 <body>
@@ -210,7 +226,7 @@
 <header>
   <div class="title">
     <h1>Keep it Sample</h1>
-    <p>Your personal Sample Library: keep track of every sample you'd like to use in your projects, get the YouTube link, mark the section, detect the BPM and Key and play it whenever you want.Sample it from your phone via USB-c into your Sampler or directly into your DAW and forget SD cards.</p>
+    <p>Your personal music sample library: paste a YouTube link, pick a start and end second, and replay it whenever you want.</p>
   </div>
   <div id="auth-bar">Loading...</div>
 </header>
@@ -222,7 +238,7 @@
     <div id="player-wrap">
       <div id="yt-player"></div>
       <div id="now-playing">
-        No Sample Playing.
+        No sample playing.
         <div>
           <button id="stop-btn" class="ghost small" type="button">Stop</button>
         </div>
@@ -230,19 +246,37 @@
     </div>
   </section>
 
-  <section class="card" id="form-card" hidden>
-    <h2>Add a Sample</h2>
+  <section class="card" id="form-card">
+    <h2 id="form-heading">Add a sample</h2>
     <form id="sample-form">
       <div class="field wide">
-        <label for="f-url">YouTube link (or ID video)</label>
+        <label for="f-url">YouTube link (or video ID)</label>
         <input id="f-url" type="text" placeholder="https://www.youtube.com/watch?v=..." required>
       </div>
       <div class="field">
-        <label for="f-name">Sample Name</label>
-        <input id="f-name" type="text" placeholder="es. Song,Artist" required>
+        <label for="f-start">Start (mm:ss or seconds)</label>
+        <input id="f-start" type="text" placeholder="e.g. 1:23" required>
       </div>
       <div class="field">
-        <label for="f-category">Type</label>
+        <label for="f-end">End (mm:ss or seconds)</label>
+        <input id="f-end" type="text" placeholder="e.g. 1:31" required>
+      </div>
+      <div class="field">
+        <button id="detect-btn" class="ghost" type="button" disabled>Detect BPM and Key</button>
+      </div>
+      <div class="field wide">
+        <div id="detect-status" class="hint">
+          Detection analyzes the actual audio of the segment as it plays: it only works on Chrome/Edge desktop and
+          will ask once to share this tab's audio. It's an automatic estimate, always editable before saving.
+        </div>
+      </div>
+
+      <div class="field gated" hidden>
+        <label for="f-name">Sample name</label>
+        <input id="f-name" type="text" placeholder="e.g. Pumped bass" required>
+      </div>
+      <div class="field gated" hidden>
+        <label for="f-category">Category</label>
         <select id="f-category" required>
           <option value="" disabled selected>Choose...</option>
           <option>Bass</option>
@@ -255,33 +289,26 @@
           <option>Voice</option>
         </select>
       </div>
-      <div class="field">
-        <label for="f-start">Start (mm:ss)</label>
-        <input id="f-start" type="text" placeholder="es. 1:23" required>
-      </div>
-      <div class="field">
-        <label for="f-end">End (mm:ss)</label>
-        <input id="f-end" type="text" placeholder="es. 1:31" required>
-      </div>
-      <div class="field">
+      <div class="field gated" hidden>
         <label for="f-bpm">BPM (optional)</label>
-        <input id="f-bpm" type="number" min="1" step="1" placeholder="es. 128">
+        <input id="f-bpm" type="number" min="1" step="1" placeholder="e.g. 128">
       </div>
-      <div class="field">
+      <div class="field gated" hidden>
         <label for="f-key">Key (optional)</label>
-        <input id="f-key" type="text" placeholder="es. A minor">
+        <input id="f-key" type="text" placeholder="e.g. A minor">
+      </div>
+      <div class="field gated" hidden>
+        <button id="save-submit-btn" type="submit" class="primary">Save sample</button>
       </div>
       <div class="field">
-        <button id="detect-btn" class="ghost" type="button" disabled>Detect BPM/Key</button>
+        <button id="cancel-edit-btn" class="ghost" type="button" hidden>Cancel edit</button>
       </div>
-      <div class="field wide">
-        <div id="detect-status" class="hint">
-          This function analyzes the actual audio of the segment as it plays: it only works on Chrome/Edge desktop and will ask once to share this tab's audio. It's an automatic estimate, always editable before saving.
-        </div>
+
+      <div class="field wide" id="signin-prompt">
+        <div class="hint">You need to sign in with Google to save this sample to the library.</div>
+        <button id="signin-prompt-btn" class="ghost small" type="button">Sign in with Google</button>
       </div>
-      <div class="field">
-        <button type="submit" class="primary">Save</button>
-      </div>
+
       <div class="field wide">
         <div id="form-status" class="status-msg"></div>
       </div>
@@ -293,17 +320,17 @@
     <div id="filters"></div>
     <br>
     <div id="grid"></div>
-    <div id="empty-msg" class="empty-msg" hidden>No sample in this category.</div>
+    <div id="empty-msg" class="empty-msg" hidden>No samples saved yet in this category.</div>
   </section>
 
 </main>
 
 <!-- YouTube IFrame API -->
 <script>
-  // Aggancio robusto: l'API di YouTube può richiamare questa funzione prima
-  // che lo script principale (più sotto, di tipo module) abbia finito di
-  // caricarsi. Qui memorizziamo solo un flag + una callback, così l'ordine
-  // di esecuzione non causa una corsa che lascerebbe il player mai creato.
+  // Robust hookup: YouTube's API may call this function before the main
+  // script below (a module script) has finished loading. We only store a
+  // flag + a callback here, so execution order can't cause a race that
+  // would leave the player never created.
   window.__ytApiReady = false;
   window.__onYtReadyCallback = null;
   window.onYouTubeIframeAPIReady = function () {
@@ -318,7 +345,7 @@
 <script type="module">
   import { initializeApp } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-app.js";
   import {
-    getFirestore, collection, addDoc, deleteDoc, doc,
+    getFirestore, collection, addDoc, updateDoc, deleteDoc, doc,
     onSnapshot, query, orderBy, serverTimestamp
   } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-firestore.js";
   import {
@@ -326,7 +353,7 @@
   } from "https://www.gstatic.com/firebasejs/12.18.0/firebase-auth.js";
 
   // ---------------------------------------------------------------
-  // 1) CONFIGURAZIONE FIREBASE (progetto "keep-it-sample")
+  // 1) FIREBASE CONFIG (project "keep-it-sample")
   // ---------------------------------------------------------------
   const firebaseConfig = {
     apiKey: "AIzaSyDqrWn9yL_gq8eHW3OjK4csCC_wWEEDcUY",
@@ -390,33 +417,44 @@
     }[c]));
   }
 
+  const DEFAULT_DETECT_HINT =
+    "Detection analyzes the actual audio of the segment as it plays: it only works on Chrome/Edge desktop and " +
+    "will ask once to share this tab's audio. It's an automatic estimate, always editable before saving.";
+
   // ---------------------------------------------------------------
-  // Autenticazione (solo il proprietario può aggiungere/eliminare;
-  // la sicurezza vera è nelle regole Firestore, questo è solo per
-  // mostrare/nascondere i controlli)
+  // Authentication. Anyone can browse, play samples and run BPM/Key
+  // detection. Only the signed-in owner can save/edit/delete samples;
+  // the real enforcement lives in the Firestore security rules, this
+  // just shows/hides the relevant controls.
   // ---------------------------------------------------------------
   let signedIn = false;
 
+  function doSignIn() {
+    signInWithPopup(auth, googleProvider).catch(err => alert("Sign-in failed: " + err.message));
+  }
+
   document.getElementById("auth-bar").addEventListener("click", (e) => {
     if (e.target.id === "signin-btn") {
-      signInWithPopup(auth, googleProvider).catch(err => alert("Accesso non riuscito: " + err.message));
+      doSignIn();
     } else if (e.target.id === "signout-btn") {
       signOut(auth);
     }
   });
 
+  document.getElementById("signin-prompt-btn").addEventListener("click", doSignIn);
+
   onAuthStateChanged(auth, (user) => {
     signedIn = !!user;
     const authBar = document.getElementById("auth-bar");
-    const formCard = document.getElementById("form-card");
     if (user) {
-      authBar.innerHTML = `Connesso come <strong>${escapeHtml(user.email || user.displayName || "utente")}</strong> &nbsp;`
-        + `<button id="signout-btn" class="ghost small" type="button">Esci</button>`;
-      formCard.hidden = false;
+      authBar.innerHTML = `Signed in as <strong>${escapeHtml(user.email || user.displayName || "user")}</strong> &nbsp;`
+        + `<button id="signout-btn" class="ghost small" type="button">Sign out</button>`;
     } else {
-      authBar.innerHTML = `<button id="signin-btn" class="ghost small" type="button">Accedi con Google</button>`;
-      formCard.hidden = true;
+      authBar.innerHTML = `<button id="signin-btn" class="ghost small" type="button">Sign in with Google</button>`;
     }
+    document.querySelectorAll(".gated").forEach(el => { el.hidden = !signedIn; });
+    document.getElementById("signin-prompt").hidden = signedIn;
+    if (!signedIn) cancelEdit();
     renderGrid();
   });
 
@@ -443,8 +481,8 @@
     });
   }
 
-  // L'API di YouTube potrebbe essere già pronta (o diventarlo poco dopo):
-  // copriamo entrambi i casi invece di affidarci solo a un singolo evento.
+  // YouTube's API might already be ready (or become ready shortly after):
+  // handle both cases instead of relying on a single event.
   if (window.__ytApiReady) {
     createPlayer();
   } else {
@@ -467,13 +505,12 @@
     });
   }
 
-  // Alcuni video hanno una pubblicità pre-roll: l'API di YouTube non
-  // permette di saltarla, ma possiamo evitare di iniziare a contare i
-  // secondi (o a registrare l'audio per il rilevamento BPM) finché lo
-  // spot sta ancora suonando. Durante la pubblicità getVideoData().video_id
-  // riporta l'ID dello spot, non quello richiesto: aspettiamo che torni a
-  // coincidere con il nostro video e che il player sia effettivamente in
-  // riproduzione prima di considerare "partito" il contenuto reale.
+  // Some videos have a pre-roll ad: the YouTube API gives no way to skip
+  // it, but we can avoid starting our stop-timer (or recording audio for
+  // BPM detection) while the ad is still playing. During an ad,
+  // getVideoData().video_id reports the ad's own id, not the one we asked
+  // for: we wait until it matches our video again and playback is
+  // actually running before treating the real content as started.
   function waitForRealContent(videoId, timeoutMs = 20000) {
     return new Promise((resolve, reject) => {
       const startTime = Date.now();
@@ -502,31 +539,31 @@
       await waitForPlayer();
     } catch {
       alert(
-        "Il player YouTube non riesce a caricarsi. Aspetta qualche secondo e riprova; " +
-        "se il problema persiste, controlla di non avere un ad-blocker o un'estensione che blocca YouTube su questa pagina."
+        "The YouTube player can't load. Wait a few seconds and try again; " +
+        "if the problem persists, check that you don't have an ad-blocker or extension blocking YouTube on this page."
       );
       return;
     }
     clearInterval(stopTimer);
     document.getElementById("now-playing").innerHTML =
-      `Caricamento: <strong>${escapeHtml(name)}</strong>... (se il video ha una pubblicità iniziale, attendi che finisca)`;
+      `Loading: <strong>${escapeHtml(name)}</strong>... (if the video has a pre-roll ad, wait for it to finish)`;
     player.loadVideoById({ videoId, startSeconds: start });
     player.playVideo();
 
     try {
       await waitForRealContent(videoId);
-      // Dopo un'eventuale pubblicità il video potrebbe essere ripartito
-      // dall'inizio invece che dal secondo richiesto: ci assicuriamo di
-      // essere davvero al punto giusto prima di far scattare il timer.
+      // After an ad, playback might have restarted from the beginning
+      // instead of the requested second: make sure we're really at the
+      // right spot before starting the stop-timer.
       player.seekTo(start, true);
       player.playVideo();
     } catch {
-      // Non siamo riusciti a confermare l'inizio del contenuto reale entro
-      // il timeout: proseguiamo comunque, meglio tentare che restare bloccati.
+      // Couldn't confirm the real content started within the timeout:
+      // carry on anyway, better than staying stuck.
     }
 
     document.getElementById("now-playing").innerHTML =
-      `In riproduzione: <strong>${escapeHtml(name)}</strong> (${formatTime(start)} - ${formatTime(end)})
+      `Now playing: <strong>${escapeHtml(name)}</strong> (${formatTime(start)} - ${formatTime(end)})
        <div><button id="stop-btn" class="ghost small" type="button">Stop</button></div>`;
     bindStopButton();
     stopTimer = setInterval(() => {
@@ -542,7 +579,7 @@
     clearInterval(stopTimer);
     if (player && player.pauseVideo) player.pauseVideo();
     document.getElementById("now-playing").innerHTML =
-      `Nessun campione in riproduzione.
+      `No sample playing.
        <div><button id="stop-btn" class="ghost small" type="button">Stop</button></div>`;
     bindStopButton();
   }
@@ -553,11 +590,11 @@
   bindStopButton();
 
   // ---------------------------------------------------------------
-  // Rilevamento automatico BPM / Tonalità
-  // Cattura l'audio reale della scheda mentre il frammento suona
-  // (nessun file viene scaricato o salvato: il buffer è usato solo
-  // per l'analisi e poi scartato) e lo analizza con essentia.js.
-  // Funziona solo su Chrome/Edge desktop.
+  // Automatic BPM / Key detection
+  // Captures the tab's real audio while the segment plays (no file is
+  // ever downloaded or stored: the buffer is only used for analysis and
+  // then discarded) and analyzes it with essentia.js. Chrome/Edge
+  // desktop only. Available to everyone, signed in or not.
   // ---------------------------------------------------------------
   let essentiaInstance = null;
 
@@ -567,7 +604,7 @@
       const s = document.createElement("script");
       s.src = src;
       s.onload = () => resolve();
-      s.onerror = () => reject(new Error("Impossibile caricare " + src));
+      s.onerror = () => reject(new Error("Could not load " + src));
       document.head.appendChild(s);
     });
   }
@@ -583,7 +620,7 @@
 
   async function captureSegmentAudio(videoId, start, end) {
     if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-      throw new Error("Il tuo browser non supporta la cattura audio (usa Chrome o Edge su desktop).");
+      throw new Error("Your browser doesn't support audio capture (use Chrome or Edge on desktop).");
     }
     const duration = end - start;
     const displayStream = await navigator.mediaDevices.getDisplayMedia({
@@ -596,7 +633,7 @@
     displayStream.getVideoTracks().forEach(t => t.stop());
     if (audioTracks.length === 0) {
       displayStream.getTracks().forEach(t => t.stop());
-      throw new Error('Nessun audio condiviso: nella finestra di condivisione spunta "Condividi audio scheda" e riprova.');
+      throw new Error('No audio shared: in the sharing window, check "Share tab audio" and try again.');
     }
 
     const audioOnlyStream = new MediaStream(audioTracks);
@@ -608,15 +645,14 @@
     player.loadVideoById({ videoId, startSeconds: start });
     player.playVideo();
 
-    // Aspettiamo che il contenuto reale sia partito (non la pubblicità)
-    // prima di iniziare a registrare, così l'audio catturato è quello del
-    // brano e non quello di uno spot pre-roll.
+    // Wait for the real content to start (not the ad) before recording,
+    // so the captured audio is the song and not a pre-roll ad.
     try {
       await waitForRealContent(videoId);
       player.seekTo(start, true);
       player.playVideo();
     } catch {
-      // procediamo comunque: meglio un'analisi imperfetta che nessuna
+      // carry on anyway: an imperfect analysis is better than none
     }
 
     recorder.start();
@@ -652,10 +688,14 @@
     const ess = await ensureEssentia();
     const vectorSignal = ess.arrayToVector(mono);
     const rhythm = ess.RhythmExtractor2013(vectorSignal);
+    // "edma" profile is tuned for pop/electronic music and reduces (not
+    // eliminates) the classic tonic/dominant key-detection confusion;
+    // we also pass the real sample rate of the captured audio instead
+    // of assuming the 44100 Hz default.
     const keyResult = ess.KeyExtractor(
-  vectorSignal, true, 4096, 4096, 12, 3500, 60, 25, 0.2,
-  "edma", audioBuffer.sampleRate, 0.0001, 440, "cosine", "hann"
-);
+      vectorSignal, true, 4096, 4096, 12, 3500, 60, 25, 0.2,
+      "edma", audioBuffer.sampleRate, 0.0001, 440, "cosine", "hann"
+    );
     return {
       bpm: Math.round(rhythm.bpm),
       key: `${keyResult.key} ${keyResult.scale}`
@@ -668,29 +708,58 @@
     const end = parseTime(document.getElementById("f-end").value);
     const videoId = extractVideoId(url);
 
-    if (!videoId) return setDetectStatus("Inserisci prima un link YouTube valido.");
-    if (isNaN(start) || isNaN(end) || end <= start) return setDetectStatus("Inserisci prima inizio e fine validi.");
-    if (!playerReady) return setDetectStatus("Il player YouTube si sta ancora caricando: attendi qualche secondo e riprova.");
+    if (!videoId) return setDetectStatus("Enter a valid YouTube link first.");
+    if (isNaN(start) || isNaN(end) || end <= start) return setDetectStatus("Enter valid start and end times first.");
+    if (!playerReady) return setDetectStatus("The YouTube player is still loading: wait a few seconds and try again.");
 
     const btn = document.getElementById("detect-btn");
     btn.disabled = true;
-    setDetectStatus("Condividi l'audio di questa scheda quando richiesto, poi attendi la riproduzione del frammento (se il video ha una pubblicità iniziale, l'app aspetta che finisca prima di registrare)...");
+    setDetectStatus("Share this tab's audio when prompted, then wait while the segment plays (if the video has a pre-roll ad, the app waits for it to finish before recording)...");
     try {
       const result = await detectBpmAndKey(videoId, start, end);
       document.getElementById("f-bpm").value = result.bpm;
       document.getElementById("f-key").value = result.key;
-      setDetectStatus(`Rilevato: ${result.bpm} BPM, ${result.key}. Puoi correggerlo prima di salvare.`);
+      setDetectStatus(`Detected: ${result.bpm} BPM, ${result.key}. Sign in to save it to the library; you can edit it before saving.`);
     } catch (err) {
       console.error(err);
-      setDetectStatus("Rilevamento non riuscito (" + err.message + "). Inserisci i valori manualmente.");
+      setDetectStatus("Detection failed (" + err.message + "). Enter the values manually.");
     } finally {
       btn.disabled = false;
     }
   });
 
   // ---------------------------------------------------------------
-  // Form: aggiungi campione
+  // Form: add / edit a sample (signed-in owner only)
   // ---------------------------------------------------------------
+  let editingId = null;
+
+  function startEdit(sample) {
+    editingId = sample.id;
+    document.getElementById("f-url").value = sample.videoId;
+    document.getElementById("f-start").value = formatTime(sample.start);
+    document.getElementById("f-end").value = formatTime(sample.end);
+    document.getElementById("f-name").value = sample.name;
+    document.getElementById("f-category").value = sample.category;
+    document.getElementById("f-bpm").value = sample.bpm || "";
+    document.getElementById("f-key").value = sample.key || "";
+    document.getElementById("form-heading").textContent = "Edit sample";
+    document.getElementById("save-submit-btn").textContent = "Save changes";
+    document.getElementById("cancel-edit-btn").hidden = false;
+    setStatus("", "");
+    document.getElementById("form-card").scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
+  function cancelEdit() {
+    editingId = null;
+    document.getElementById("sample-form").reset();
+    document.getElementById("form-heading").textContent = "Add a sample";
+    document.getElementById("save-submit-btn").textContent = "Save sample";
+    document.getElementById("cancel-edit-btn").hidden = true;
+    setStatus("", "");
+  }
+
+  document.getElementById("cancel-edit-btn").addEventListener("click", cancelEdit);
+
   document.getElementById("sample-form").addEventListener("submit", async (e) => {
     e.preventDefault();
     const url = document.getElementById("f-url").value;
@@ -702,39 +771,46 @@
     const keyRaw = document.getElementById("f-key").value.trim();
 
     const videoId = extractVideoId(url);
-    if (!videoId) return setStatus("Link YouTube non riconosciuto.", "error");
-    if (!name) return setStatus("Inserisci un nome per il campione.", "error");
-    if (!category) return setStatus("Scegli una categoria.", "error");
-    if (isNaN(start) || isNaN(end)) return setStatus("Formato tempo non valido (usa mm:ss o secondi).", "error");
-    if (end <= start) return setStatus("Il tempo di fine deve essere dopo l'inizio.", "error");
+    if (!videoId) return setStatus("YouTube link not recognized.", "error");
+    if (!name) return setStatus("Enter a name for the sample.", "error");
+    if (!category) return setStatus("Choose a category.", "error");
+    if (isNaN(start) || isNaN(end)) return setStatus("Invalid time format (use mm:ss or seconds).", "error");
+    if (end <= start) return setStatus("The end time must be after the start.", "error");
+
+    const data = {
+      name, category, videoId, start, end,
+      bpm: bpmRaw ? Number(bpmRaw) : null,
+      key: keyRaw || null
+    };
 
     try {
-      setStatus("Salvataggio...", "");
-      await addDoc(samplesCol, {
-        name, category, videoId, start, end,
-        bpm: bpmRaw ? Number(bpmRaw) : null,
-        key: keyRaw || null,
-        createdAt: serverTimestamp()
-      });
-      document.getElementById("sample-form").reset();
-      setDetectStatus("Il rilevamento analizza l'audio reale del frammento mentre suona: funziona solo su Chrome/Edge desktop e chiede una volta di condividere l'audio di questa scheda. È una stima automatica, sempre modificabile prima di salvare.");
-      setStatus("Campione salvato.", "ok");
+      if (editingId) {
+        setStatus("Saving changes...", "");
+        await updateDoc(doc(db, "samples", editingId), data);
+        setStatus("Sample updated.", "ok");
+      } else {
+        setStatus("Saving...", "");
+        await addDoc(samplesCol, { ...data, used: false, createdAt: serverTimestamp() });
+        setStatus("Sample saved.", "ok");
+      }
+      cancelEdit();
+      setDetectStatus(DEFAULT_DETECT_HINT);
     } catch (err) {
       console.error(err);
-      setStatus("Errore nel salvataggio (verifica di aver eseguito l'accesso): " + err.message, "error");
+      setStatus("Error saving (check that you're signed in): " + err.message, "error");
     }
   });
 
   // ---------------------------------------------------------------
-  // Filtri per categoria
+  // Category filters
   // ---------------------------------------------------------------
-  let currentFilter = "Tutte";
+  let currentFilter = "All";
   let allSamples = [];
 
   function renderFilters() {
     const wrap = document.getElementById("filters");
     wrap.innerHTML = "";
-    ["Tutte", ...CATEGORIES].forEach(cat => {
+    ["All", ...CATEGORIES].forEach(cat => {
       const btn = document.createElement("button");
       btn.className = "ghost small" + (cat === currentFilter ? " active" : "");
       btn.textContent = cat;
@@ -749,7 +825,7 @@
   }
 
   // ---------------------------------------------------------------
-  // Griglia campioni (aggiornata in tempo reale da Firestore)
+  // Sample grid (updated in real time from Firestore)
   // ---------------------------------------------------------------
   function renderGrid() {
     const grid = document.getElementById("grid");
@@ -761,7 +837,7 @@
 
     list.forEach(s => {
       const card = document.createElement("div");
-      card.className = "sample-card";
+      card.className = "sample-card" + (s.used ? " used" : "");
       const metaParts = [];
       if (s.bpm) metaParts.push(`${s.bpm} BPM`);
       if (s.key) metaParts.push(escapeHtml(s.key));
@@ -770,8 +846,13 @@
         <span class="badge">${escapeHtml(s.category)}</span>
         <div class="name">${escapeHtml(s.name)}</div>
         <div class="time-range">${formatTime(s.start)} - ${formatTime(s.end)}${metaLine}</div>
+        <label class="used-toggle">
+          <input type="checkbox" data-action="toggle-used" data-id="${s.id}" ${s.used ? "checked" : ""} ${signedIn ? "" : "disabled"}>
+          Used
+        </label>
         <div class="card-actions">
           <button class="primary small" data-action="play" data-id="${s.id}">Play</button>
+          ${signedIn ? `<button class="ghost small" data-action="edit" data-id="${s.id}">Edit</button>` : ""}
           ${signedIn ? `<button class="danger small" data-action="delete" data-id="${s.id}">Delete</button>` : ""}
         </div>
       `;
@@ -788,19 +869,33 @@
 
     if (btn.dataset.action === "play") {
       await playSegment(sample.videoId, sample.start, sample.end, sample.name);
+    } else if (btn.dataset.action === "edit") {
+      startEdit(sample);
     } else if (btn.dataset.action === "delete") {
-      if (confirm(`Eliminare "${sample.name}"?`)) {
+      if (confirm(`Delete "${sample.name}"?`)) {
         try {
           await deleteDoc(doc(db, "samples", id));
         } catch (err) {
-          alert("Impossibile eliminare: " + err.message);
+          alert("Could not delete: " + err.message);
         }
       }
     }
   });
 
+  document.getElementById("grid").addEventListener("change", async (e) => {
+    const cb = e.target.closest('input[data-action="toggle-used"]');
+    if (!cb) return;
+    const id = cb.dataset.id;
+    try {
+      await updateDoc(doc(db, "samples", id), { used: cb.checked });
+    } catch (err) {
+      cb.checked = !cb.checked;
+      alert("Could not update: " + err.message);
+    }
+  });
+
   // ---------------------------------------------------------------
-  // Ascolto in tempo reale di Firestore
+  // Real-time listener on Firestore
   // ---------------------------------------------------------------
   const q = query(samplesCol, orderBy("createdAt", "desc"));
   onSnapshot(q, (snap) => {
